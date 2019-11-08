@@ -17,7 +17,7 @@
 data "template_file" "nat-startup-script" {
   template = "${file("${format("%s/config/startup.sh", path.module)}")}"
 
-  vars {
+  vars = {
     squid_enabled = "${var.squid_enabled}"
     squid_config  = "${var.squid_config}"
     module_path   = "${path.module}"
@@ -109,8 +109,8 @@ resource "google_compute_firewall" "nat-gateway" {
     protocol = "all"
   }
 
-  source_tags = ["${compact(concat(list("${local.regional_tag}", "${local.zonal_tag}"), var.tags))}"]
-  target_tags = ["${compact(concat(local.instance_tags, var.tags))}"]
+  "source_tags" = ["${compact(concat(list("${local.regional_tag}", "${local.zonal_tag}"), var.tags))}"]
+  "target_tags" = ["${compact(concat(local.instance_tags, var.tags))}"]
 }
 
 resource "google_compute_address" "default" {
