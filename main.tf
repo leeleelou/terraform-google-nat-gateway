@@ -70,7 +70,7 @@ module "nat-gateway" {
   ssh_source_ranges     = var.ssh_source_ranges
   http_health_check     = var.autohealing_enabled
 
-  update_policy = [
+  update_strategy = [
     {
       type                  = "PROACTIVE"
       minimal_action        = "REPLACE"
