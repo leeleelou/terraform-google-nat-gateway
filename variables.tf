@@ -129,7 +129,7 @@ variable "autohealing_enabled" {
 
 variable "region_params" {
   description = "Map of default zones and IPs for each region. Can be overridden using the `zone` and `ip` variables."
-  type        = map(string)
+  type        = "map"
 
   default = {
     "asia-east1" = {
