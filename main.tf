@@ -46,6 +46,7 @@ locals {
 
 module "nat-gateway" {
   source                = "github.com/automotivemastermind/terraform-google-managed-instance-group"
+  version               = "2.0.0"
   module_enabled        = var.module_enabled
   project               = var.project
   region                = var.region
