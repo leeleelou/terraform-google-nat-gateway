@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-variable "module_enabled" {
-  description = "To disable this module, set this to false"
-  default     = true
-}
+# variable "module_enabled" {
+#   description = "To disable this module, set this to false"
+#   default     = true
+# }
 
 variable "project" {
   description = "The project to deploy to, if not set the default provider project is used."
@@ -132,24 +132,6 @@ variable "region_params" {
   type        = map(string)
 
   default = {
-    asia-east1 = "asia-east1-b"
-    asia-east2 = "asia-east2-b"
-    asia-northeast1 = "asia-northeast1-b"
-    asia-south1 = "asia-south1-b"
-    asia-southeast1 = "asia-southeast1-b"
-    australia-southeast1 = "australia-southeast1-b"
-    europe-north1 = "europe-north1-b"
-    europe-west1 = "europe-west1-b"
-    europe-west2 = "europe-west2-b"
-    europe-west3 = "europe-west3-b"
-    europe-west4 = "europe-west4-b"
-    northamerica-northeast1 = "northamerica-northeast1-b"
-    southamerica-east1 = "southamerica-east1-b"
-    us-central1 = "us-central1-f"
-    us-east1 = "us-east1-b"
-    us-east4 = "us-east4-b"
-    us-west1 = "us-west1-b"
-    us-west2 = "us-west2-b"
   }
 }
 
