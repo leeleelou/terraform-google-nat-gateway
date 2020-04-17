@@ -117,9 +117,17 @@ variable "instance_labels" {
   default     = {}
 }
 
-variable "service_account_email" {
+variable "service_account" {
   description = "The email of the service account for the instance template."
-  default     = "default"
+  default     = {
+    email     = "default"
+    scopes = [
+      "https://www.googleapis.com/auth/compute",
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring.write",
+      "https://www.googleapis.com/auth/devstorage.full_control",
+    ]
+  }
 }
 
 variable "autohealing_enabled" {

@@ -44,7 +44,7 @@ module "nat-gateway" {
   subnetwork            = var.subnetwork
   target_tags           = local.instance_tags
   instance_labels       = var.instance_labels
-  service_account       = var.service_account_email
+  service_account       = var.service_account
   machine_type          = var.machine_type
   name                  = local.name
   source_image          = var.compute_image
