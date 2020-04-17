@@ -53,7 +53,14 @@ module "nat-gateway" {
   can_ip_forward        = "true"
   service_port          = "80"
   service_port_name     = "http"
-  startup_script        = templatefile("${path.module}/config/startup.sh", { squid_enabled = false, squid_config = "", module_path = path.module })
+  startup_script        = templatefile(
+    "${path.module}/config/startup.sh",
+    {
+      squid_enabled = false,
+      squid_config = "",
+      module_path = path.module
+    }
+  )
   wait_for_instances    = true
   metadata              = var.metadata
   ssh_fw_rule           = var.ssh_fw_rule
