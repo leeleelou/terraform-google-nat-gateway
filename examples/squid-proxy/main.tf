@@ -71,8 +71,7 @@ resource "google_compute_instance" "vm" {
   }
 
   network_interface {
-    subnetwork    = "${google_compute_subnetwork.default.name}"
-    access_config = []
+    subnetwork = "${google_compute_subnetwork.default.name}"
   }
 }
 

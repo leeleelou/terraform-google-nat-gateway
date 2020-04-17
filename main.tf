@@ -14,16 +14,6 @@
  * limitations under the License.
  */
 
-data "template_file" "nat-startup-script" {
-  template = file(format("%s/config/startup.sh", path.module))
-
-  vars = {
-    squid_enabled = var.squid_enabled
-    squid_config  = var.squid_config
-    module_path   = path.module
-  }
-}
-
 data "google_compute_network" "network" {
   name    = var.network
   project = var.network_project == "" ? var.project : var.network_project
@@ -42,6 +32,7 @@ locals {
   instance_tags = ["inst-${local.zonal_tag}", "inst-${local.regional_tag}"]
   zonal_tag     = "${var.name}nat-${local.zone}"
   regional_tag  = "${var.name}nat-${var.region}"
+  module_path   = path.module
 }
 
 module "nat-gateway" {
@@ -62,7 +53,7 @@ module "nat-gateway" {
   can_ip_forward        = "true"
   service_port          = "80"
   service_port_name     = "http"
-  startup_script        = data.template_file.nat-startup-script.rendered
+  startup_script        = templatefile("${path.module}/config/startup.sh", { squid_enabled = false, squid_config = "", module_path = path.module })
   wait_for_instances    = true
   metadata              = var.metadata
   ssh_fw_rule           = var.ssh_fw_rule
