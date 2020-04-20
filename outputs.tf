@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-output "depends_id" {
-  description = "Value that can be used for intra-module dependency creation."
-  value       = module.nat-gateway.depends_id
-}
-
 output "gateway_ip" {
   description = "The internal IP address of the NAT gateway instance."
   value       = module.nat-gateway.network_ip
@@ -26,19 +21,12 @@ output "gateway_ip" {
 
 output "instance" {
   description = "The self link to the NAT gateway instance."
-  value       = flatten(module.nat-gateway.instances)
+  value       = module.nat-gateway.instances
 }
 
 output "external_ip" {
   description = "The external IP address of the NAT gateway instance."
-  value = element(
-    concat(
-      google_compute_address.default.*.address,
-      data.google_compute_address.default.*.address,
-      [""],
-    ),
-    0,
-  )
+  value       = local.external_ip
 }
 
 output "routing_tag_regional" {

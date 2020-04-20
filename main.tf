@@ -33,39 +33,43 @@ locals {
   zonal_tag     = "${var.name}nat-${local.zone}"
   regional_tag  = "${var.name}nat-${var.region}"
   module_path   = path.module
+  external_ip = try(
+    google_compute_address.default.*.address[0],
+    data.google_compute_address.default.*.address[0],
+  )
 }
 
 module "nat-gateway" {
-  source                = "github.com/automotiveMastermind/terraform-google-managed-instance-group?ref=0.12upgrade"
-  project               = var.project
-  region                = var.region
-  zone                  = local.zone
-  network               = var.network
-  subnetwork            = var.subnetwork
-  target_tags           = local.instance_tags
-  instance_labels       = var.instance_labels
-  service_account       = var.service_account
-  machine_type          = var.machine_type
-  name                  = local.name
-  source_image          = var.compute_image
-  target_size           = 1
-  network_ip            = var.ip
-  can_ip_forward        = "true"
-  service_port          = "80"
-  service_port_name     = "http"
-  startup_script        = templatefile(
+  source            = "github.com/automotiveMastermind/terraform-google-managed-instance-group?ref=0.12upgrade"
+  project           = var.project
+  region            = var.region
+  zone              = local.zone
+  network           = var.network
+  subnetwork        = var.subnetwork
+  target_tags       = local.instance_tags
+  instance_labels   = var.instance_labels
+  service_account   = var.service_account
+  machine_type      = var.machine_type
+  name              = local.name
+  source_image      = var.compute_image
+  target_size       = 1
+  network_ip        = var.ip
+  can_ip_forward    = "true"
+  service_port      = "80"
+  service_port_name = "http"
+  startup_script = templatefile(
     "${path.module}/config/startup.sh",
     {
       squid_enabled = false,
-      squid_config = "",
-      module_path = path.module
+      squid_config  = "",
+      module_path   = path.module
     }
   )
-  wait_for_instances    = true
-  metadata              = var.metadata
-  ssh_fw_rule           = var.ssh_fw_rule
-  ssh_source_ranges     = var.ssh_source_ranges
-  http_health_check     = var.autohealing_enabled
+  wait_for_instances = true
+  metadata           = var.metadata
+  ssh_fw_rule        = var.ssh_fw_rule
+  ssh_source_ranges  = var.ssh_source_ranges
+  http_health_check  = var.autohealing_enabled
 
   update_policy = [
     {
@@ -79,25 +83,19 @@ module "nat-gateway" {
 
   access_config = [
     {
-      nat_ip = element(
-        concat(
-          google_compute_address.default.*.address,
-          data.google_compute_address.default.*.address,
-          [""],
-        ),
-        0,
-      ),
+      nat_ip       = local.external_ip
       network_tier = "PREMIUM"
     },
   ]
 }
 
 resource "google_compute_route" "nat-gateway" {
+  count                  = module.nat-gateway.instance_group_target_size
   name                   = local.zonal_tag
   project                = var.project
   dest_range             = var.dest_range
   network                = data.google_compute_network.network.self_link
-  next_hop_instance      = element(split("/", element(module.nat-gateway.instances[0], 0)), 10)
+  next_hop_instance      = module.nat-gateway.instances[count.index]
   next_hop_instance_zone = local.zone
   tags                   = compact(concat([local.regional_tag, local.zonal_tag], var.tags))
   priority               = var.route_priority
