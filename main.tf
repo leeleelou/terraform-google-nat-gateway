@@ -103,10 +103,10 @@ module "nat-gateway" {
   metadata           = var.metadata
   network_ip         = var.ip
   target_tags        = local.instance_tags
-  service_account    = var.service_account
   machine_type       = var.machine_type
   source_image       = var.compute_image
   target_size        = 1
+  service_account    = var.service_account
   service_port       = 80
   service_port_name  = "http"
   ssh_fw_rule        = var.ssh_fw_rule
