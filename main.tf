@@ -14,61 +14,126 @@
  * limitations under the License.
  */
 
-data "template_file" "nat-startup-script" {
-  template = "${file("${format("%s/config/startup.sh", path.module)}")}"
 
-  vars {
-    squid_enabled = "${var.squid_enabled}"
-    squid_config  = "${var.squid_config}"
-    module_path   = "${path.module}"
-  }
+###############
+# Data Sources
+###############
+
+data "google_compute_address" "default" {
+  count   = var.ip_address_name == "" ? 0 : 1
+  name    = var.ip_address_name
+  project = var.network_project == "" ? var.project : var.network_project
+  region  = var.region
+}
+
+data "google_compute_instance_group" "default" {
+  self_link = module.nat-gateway.instance_group
 }
 
 data "google_compute_network" "network" {
-  name    = "${var.network}"
-  project = "${var.network_project == "" ? var.project : var.network_project}"
+  name    = var.network
+  project = var.network_project == "" ? var.project : var.network_project
 }
 
-data "google_compute_address" "default" {
-  count   = "${var.ip_address_name == "" ? 0 : 1}"
-  name    = "${var.ip_address_name}"
-  project = "${var.network_project == "" ? var.project : var.network_project}"
-  region  = "${var.region}"
-}
+#########
+# Locals
+#########
 
 locals {
-  zone          = "${var.zone == "" ? lookup(var.region_params["${var.region}"], "zone") : var.zone}"
-  name          = "${var.name}nat-gateway-${local.zone}"
+  external_ip = try(
+    google_compute_address.default.*.address[0],
+    data.google_compute_address.default.*.address[0],
+  )
+  instances     = tolist(data.google_compute_instance_group.default.instances)
   instance_tags = ["inst-${local.zonal_tag}", "inst-${local.regional_tag}"]
-  zonal_tag     = "${var.name}nat-${local.zone}"
+  module_path   = path.module
+  name          = "${var.name}nat-gateway-${local.zone}"
   regional_tag  = "${var.name}nat-${var.region}"
+  zonal_tag     = "${var.name}nat-${local.zone}"
+  zone          = var.zone == "" ? var.region_params[var.region]["zone"] : var.zone
+}
+
+#########
+# Modules
+#########
+
+resource "google_compute_address" "default" {
+  count   = var.ip_address_name == "" ? 1 : 0
+  name    = local.zonal_tag
+  project = var.project
+  region  = var.region
+}
+
+resource "google_compute_route" "nat-gateway" {
+  count                  = length(local.instances)
+  name                   = local.zonal_tag
+  project                = var.project
+  dest_range             = var.dest_range
+  network                = data.google_compute_network.network.self_link
+  next_hop_instance      = local.instances[count.index]
+  next_hop_instance_zone = local.zone
+  tags                   = compact(concat([local.regional_tag, local.zonal_tag], var.tags))
+  priority               = var.route_priority
+}
+
+resource "google_compute_firewall" "nat-gateway" {
+  name    = local.zonal_tag
+  network = var.network
+  project = var.project
+
+  source_tags = compact(concat([local.regional_tag, local.zonal_tag], var.tags))
+  target_tags = compact(concat(local.instance_tags, var.tags))
+
+  allow {
+    protocol = "all"
+  }
 }
 
 module "nat-gateway" {
-  source                = "github.com/automotivemastermind/terraform-google-managed-instance-group?ref=1.2.0"
-  module_enabled        = "${var.module_enabled}"
-  project               = "${var.project}"
-  region                = "${var.region}"
-  zone                  = "${local.zone}"
-  network               = "${var.network}"
-  subnetwork            = "${var.subnetwork}"
-  target_tags           = ["${local.instance_tags}"]
-  instance_labels       = "${var.instance_labels}"
-  service_account_email = "${var.service_account_email}"
-  machine_type          = "${var.machine_type}"
-  name                  = "${local.name}"
-  compute_image         = "${var.compute_image}"
-  size                  = 1
-  network_ip            = "${var.ip}"
-  can_ip_forward        = "true"
-  service_port          = "80"
-  service_port_name     = "http"
-  startup_script        = "${data.template_file.nat-startup-script.rendered}"
-  wait_for_instances    = true
-  metadata              = "${var.metadata}"
-  ssh_fw_rule           = "${var.ssh_fw_rule}"
-  ssh_source_ranges     = "${var.ssh_source_ranges}"
-  http_health_check     = "${var.autohealing_enabled}"
+  source             = "../terraform-google-managed-instance-group"
+  name               = local.name
+  project            = var.project
+  region             = var.region
+  zone               = local.zone
+  network            = var.network
+  subnetwork         = var.subnetwork
+  can_ip_forward     = true
+  http_health_check  = var.autohealing_enabled
+  instance_labels    = var.instance_labels
+  metadata           = var.metadata
+  network_ip         = var.ip
+  target_tags        = local.instance_tags
+  service_account    = var.service_account
+  machine_type       = var.machine_type
+  source_image       = var.compute_image
+  target_size        = 1
+  service_port       = 80
+  service_port_name  = "http"
+  ssh_fw_rule        = var.ssh_fw_rule
+  ssh_source_ranges  = var.ssh_source_ranges
+  wait_for_instances = true
+  access_config = [
+    {
+      nat_ip       = local.external_ip
+      network_tier = "PREMIUM"
+    }
+  ]
+
+  named_ports = [
+    {
+      name = "http"
+      port = 80
+    }
+  ]
+
+  startup_script = templatefile(
+    "${path.module}/config/startup.sh",
+    {
+      squid_enabled = false,
+      squid_config  = "",
+      module_path   = path.module
+    }
+  )
 
   update_policy = [
     {
@@ -77,45 +142,6 @@ module "nat-gateway" {
       max_surge_fixed       = 0
       max_unavailable_fixed = 1
       min_ready_sec         = 30
-    },
+    }
   ]
-
-  access_config = [
-    {
-      nat_ip = "${element(concat(google_compute_address.default.*.address, data.google_compute_address.default.*.address, list("")), 0)}"
-    },
-  ]
-}
-
-resource "google_compute_route" "nat-gateway" {
-  count                  = "${var.module_enabled ? 1 : 0}"
-  name                   = "${local.zonal_tag}"
-  project                = "${var.project}"
-  dest_range             = "${var.dest_range}"
-  network                = "${data.google_compute_network.network.self_link}"
-  next_hop_instance      = "${element(split("/", element(module.nat-gateway.instances[0], 0)), 10)}"
-  next_hop_instance_zone = "${local.zone}"
-  tags                   = ["${compact(concat(list("${local.regional_tag}", "${local.zonal_tag}"), var.tags))}"]
-  priority               = "${var.route_priority}"
-}
-
-resource "google_compute_firewall" "nat-gateway" {
-  count   = "${var.module_enabled ? 1 : 0}"
-  name    = "${local.zonal_tag}"
-  network = "${var.network}"
-  project = "${var.project}"
-
-  allow {
-    protocol = "all"
-  }
-
-  source_tags = ["${compact(concat(list("${local.regional_tag}", "${local.zonal_tag}"), var.tags))}"]
-  target_tags = ["${compact(concat(local.instance_tags, var.tags))}"]
-}
-
-resource "google_compute_address" "default" {
-  count   = "${var.module_enabled && var.ip_address_name == "" ? 1 : 0}"
-  name    = "${local.zonal_tag}"
-  project = "${var.project}"
-  region  = "${var.region}"
 }
