@@ -15,7 +15,7 @@ apt-get install -y nginx
 
 ENABLE_SQUID="${squid_enabled}"
 
-if [[ "$$ENABLE_SQUID" == "true" ]]; then
+if [[ "$ENABLE_SQUID" == "true" ]]; then
   apt-get install -y squid3
 
   cat - > /etc/squid/squid.conf <<'EOM'
